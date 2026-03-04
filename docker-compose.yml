@@ -151,6 +151,33 @@ services:
       - tracerat-net
     restart: unless-stopped
 
+  diff-fetching-service:
+    build:
+      context: .
+      dockerfile: diff-fetching-service/Dockerfile
+    container_name: tracerat-diff-fetching-service
+    ports:
+      - "8001:8001"
+    environment:
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_PR_EVENTS_TOPIC: pr-events
+      KAFKA_DIFF_METADATA_TOPIC: diff-metadata
+      KAFKA_DIFF_CONTENT_TOPIC: diff-content
+      KAFKA_CONSUMER_GROUP: diff-fetching-service
+      # GitHub App
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY_PATH: /app/secrets/github-app.pem
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
+    volumes:
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - tracerat-net
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   kafka-data:

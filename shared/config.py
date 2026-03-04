@@ -11,6 +11,12 @@ class KafkaSettings(BaseSettings):
         default="localhost:9092", alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     pr_events_topic: str = Field(default="pr-events", alias="KAFKA_PR_EVENTS_TOPIC")
+    diff_metadata_topic: str = Field(
+        default="diff-metadata", alias="KAFKA_DIFF_METADATA_TOPIC"
+    )
+    diff_content_topic: str = Field(
+        default="diff-content", alias="KAFKA_DIFF_CONTENT_TOPIC"
+    )
     consumer_group: str = Field(default="tracerat", alias="KAFKA_CONSUMER_GROUP")
 
     model_config = {"env_prefix": "", "extra": "ignore"}
