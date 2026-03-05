@@ -17,6 +17,12 @@ class KafkaSettings(BaseSettings):
     diff_content_topic: str = Field(
         default="diff-content", alias="KAFKA_DIFF_CONTENT_TOPIC"
     )
+    delta_graph_topic: str = Field(
+        default="delta-graph", alias="KAFKA_DELTA_GRAPH_TOPIC"
+    )
+    telemetry_events_topic: str = Field(
+        default="telemetry-events", alias="KAFKA_TELEMETRY_EVENTS_TOPIC"
+    )
     consumer_group: str = Field(default="tracerat", alias="KAFKA_CONSUMER_GROUP")
 
     model_config = {"env_prefix": "", "extra": "ignore"}

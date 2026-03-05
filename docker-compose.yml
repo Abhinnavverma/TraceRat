@@ -178,6 +178,33 @@ services:
       - tracerat-net
     restart: unless-stopped
 
+  dependency-graph:
+    build:
+      context: .
+      dockerfile: dependency-graph/Dockerfile
+    container_name: tracerat-dependency-graph
+    ports:
+      - "8002:8002"
+    environment:
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_DIFF_METADATA_TOPIC: diff-metadata
+      KAFKA_DELTA_GRAPH_TOPIC: delta-graph
+      KAFKA_TELEMETRY_EVENTS_TOPIC: telemetry-events
+      KAFKA_CONSUMER_GROUP: dependency-graph-service
+      # Neo4j
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: tracerat_dev
+    depends_on:
+      kafka:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    networks:
+      - tracerat-net
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   kafka-data:
