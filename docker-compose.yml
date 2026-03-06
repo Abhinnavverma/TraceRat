@@ -258,6 +258,36 @@ services:
       - tracerat-net
     restart: unless-stopped
 
+  prediction-service:
+    build:
+      context: .
+      dockerfile: prediction-service/Dockerfile
+    container_name: tracerat-prediction-service
+    ports:
+      - "8004:8004"
+    environment:
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_DELTA_GRAPH_TOPIC: delta-graph
+      KAFKA_PR_CONTEXT_TOPIC: pr-context
+      KAFKA_PREDICTION_RESULTS_TOPIC: prediction-results
+      KAFKA_CONSUMER_GROUP: prediction-service
+      # Prediction weights (optional overrides)
+      PREDICTION_CHANGE_SIZE_WEIGHT: ${PREDICTION_CHANGE_SIZE_WEIGHT:-0.30}
+      PREDICTION_DEPTH_WEIGHT: ${PREDICTION_DEPTH_WEIGHT:-0.25}
+      PREDICTION_TRAFFIC_WEIGHT: ${PREDICTION_TRAFFIC_WEIGHT:-0.25}
+      PREDICTION_HISTORY_WEIGHT: ${PREDICTION_HISTORY_WEIGHT:-0.20}
+      PREDICTION_BUFFER_TTL_SECONDS: ${PREDICTION_BUFFER_TTL_SECONDS:-60}
+      PREDICTION_SWEEP_INTERVAL_SECONDS: ${PREDICTION_SWEEP_INTERVAL_SECONDS:-10}
+      # Api-gateway results endpoint
+      API_GATEWAY_RESULTS_URL: http://api-gateway:8000/results
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - tracerat-net
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   kafka-data:

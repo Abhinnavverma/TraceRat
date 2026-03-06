@@ -26,6 +26,9 @@ class KafkaSettings(BaseSettings):
     pr_context_topic: str = Field(
         default="pr-context", alias="KAFKA_PR_CONTEXT_TOPIC"
     )
+    prediction_results_topic: str = Field(
+        default="prediction-results", alias="KAFKA_PREDICTION_RESULTS_TOPIC"
+    )
     consumer_group: str = Field(default="tracerat", alias="KAFKA_CONSUMER_GROUP")
 
     model_config = {"env_prefix": "", "extra": "ignore"}
@@ -104,6 +107,35 @@ class EmbeddingSettings(BaseSettings):
     model_config = {"env_prefix": "", "extra": "ignore"}
 
 
+class PredictionSettings(BaseSettings):
+    """Prediction service scoring weights and configuration."""
+
+    depth_weight: float = Field(
+        default=0.25, ge=0.0, le=1.0, alias="PREDICTION_DEPTH_WEIGHT"
+    )
+    traffic_weight: float = Field(
+        default=0.25, ge=0.0, le=1.0, alias="PREDICTION_TRAFFIC_WEIGHT"
+    )
+    history_weight: float = Field(
+        default=0.20, ge=0.0, le=1.0, alias="PREDICTION_HISTORY_WEIGHT"
+    )
+    change_size_weight: float = Field(
+        default=0.30, ge=0.0, le=1.0, alias="PREDICTION_CHANGE_SIZE_WEIGHT"
+    )
+    buffer_ttl_seconds: int = Field(
+        default=60, ge=5, alias="PREDICTION_BUFFER_TTL_SECONDS"
+    )
+    sweep_interval_seconds: int = Field(
+        default=10, ge=1, alias="PREDICTION_SWEEP_INTERVAL_SECONDS"
+    )
+    api_gateway_results_url: str = Field(
+        default="http://api-gateway:8000/results",
+        alias="API_GATEWAY_RESULTS_URL",
+    )
+
+    model_config = {"env_prefix": "", "extra": "ignore"}
+
+
 class Settings(BaseSettings):
     """Root settings aggregating all sub-configs."""
 
@@ -114,6 +146,7 @@ class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     qdrant: QdrantSettings = QdrantSettings()
     embedding: EmbeddingSettings = EmbeddingSettings()
+    prediction: PredictionSettings = PredictionSettings()
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 
