@@ -23,6 +23,9 @@ class KafkaSettings(BaseSettings):
     telemetry_events_topic: str = Field(
         default="telemetry-events", alias="KAFKA_TELEMETRY_EVENTS_TOPIC"
     )
+    pr_context_topic: str = Field(
+        default="pr-context", alias="KAFKA_PR_CONTEXT_TOPIC"
+    )
     consumer_group: str = Field(default="tracerat", alias="KAFKA_CONSUMER_GROUP")
 
     model_config = {"env_prefix": "", "extra": "ignore"}
@@ -74,6 +77,33 @@ class LLMSettings(BaseSettings):
     model_config = {"env_prefix": "", "extra": "ignore"}
 
 
+class QdrantSettings(BaseSettings):
+    """Qdrant vector database connection settings."""
+
+    host: str = Field(default="localhost", alias="QDRANT_HOST")
+    port: int = Field(default=6333, alias="QDRANT_PORT")
+    grpc_port: int = Field(default=6334, alias="QDRANT_GRPC_PORT")
+    collection_name: str = Field(
+        default="pr-embeddings", alias="QDRANT_COLLECTION_NAME"
+    )
+
+    model_config = {"env_prefix": "", "extra": "ignore"}
+
+
+class EmbeddingSettings(BaseSettings):
+    """Embedding model settings."""
+
+    backend: str = Field(
+        default="sentence-transformer", alias="EMBEDDING_BACKEND"
+    )
+    model_name: str = Field(
+        default="all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_NAME"
+    )
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+
+    model_config = {"env_prefix": "", "extra": "ignore"}
+
+
 class Settings(BaseSettings):
     """Root settings aggregating all sub-configs."""
 
@@ -82,6 +112,8 @@ class Settings(BaseSettings):
     postgres: PostgresSettings = PostgresSettings()
     neo4j: Neo4jSettings = Neo4jSettings()
     llm: LLMSettings = LLMSettings()
+    qdrant: QdrantSettings = QdrantSettings()
+    embedding: EmbeddingSettings = EmbeddingSettings()
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 
