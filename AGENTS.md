@@ -29,6 +29,7 @@ dependency-graph/
 prediction-service/
 vectorization-service/
 prompt-generation-service/
+llm-service/
 
 ## Development Guidelines
 

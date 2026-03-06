@@ -2,8 +2,8 @@
 
 Stateless microservice that consumes ``delta-graph`` and ``pr-context``
 Kafka topics, correlates them by ``event_id``, computes a weighted
-risk score, and publishes results to both a Kafka topic and the
-api-gateway HTTP endpoint.
+risk score, and publishes results to the Kafka ``prediction-results``
+topic for downstream processing.
 """
 
 import asyncio
@@ -105,11 +105,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("Failed to start Kafka producer", error=str(e))
 
-    # 4. Result publisher (dual-path: Kafka + HTTP)
+    # 4. Result publisher (Kafka-only)
     publisher = ResultPublisher(
         producer=_producer,
         prediction_topic=settings.kafka.prediction_results_topic,
-        api_gateway_url=pred_settings.api_gateway_results_url,
     )
 
     # 5. Kafka consumer
@@ -173,8 +172,7 @@ app = FastAPI(
     description=(
         "Stateless blast-radius scoring service. "
         "Correlates delta-graph and pr-context signals, computes a "
-        "weighted risk score, and publishes predictions to Kafka "
-        "and the api-gateway."
+        "weighted risk score, and publishes predictions to Kafka."
     ),
     version="0.1.0",
     lifespan=lifespan,

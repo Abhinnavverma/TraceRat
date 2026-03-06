@@ -279,8 +279,6 @@ services:
       PREDICTION_HISTORY_WEIGHT: ${PREDICTION_HISTORY_WEIGHT:-0.20}
       PREDICTION_BUFFER_TTL_SECONDS: ${PREDICTION_BUFFER_TTL_SECONDS:-60}
       PREDICTION_SWEEP_INTERVAL_SECONDS: ${PREDICTION_SWEEP_INTERVAL_SECONDS:-10}
-      # Api-gateway results endpoint
-      API_GATEWAY_RESULTS_URL: http://api-gateway:8000/results
     depends_on:
       kafka:
         condition: service_healthy
@@ -301,6 +299,33 @@ services:
       KAFKA_PREDICTION_RESULTS_TOPIC: prediction-results
       KAFKA_LLM_PROMPTS_TOPIC: llm-prompts
       KAFKA_CONSUMER_GROUP: prompt-generation-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - tracerat-net
+    restart: unless-stopped
+
+  llm-service:
+    build:
+      context: .
+      dockerfile: llm-service/Dockerfile
+    container_name: tracerat-llm-service
+    ports:
+      - "8006:8006"
+    environment:
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_LLM_PROMPTS_TOPIC: llm-prompts
+      KAFKA_CONSUMER_GROUP: llm-service
+      # LLM
+      LLM_PROVIDER: gemini
+      LLM_MODEL: gemini-2.0-flash
+      LLM_API_KEY: ${GEMINI_API_KEY:-}
+      LLM_MAX_RETRIES: 3
+      LLM_RETRY_BASE_DELAY: 1.0
+      # Api-gateway
+      API_GATEWAY_RESULTS_URL: http://api-gateway:8000/results
     depends_on:
       kafka:
         condition: service_healthy

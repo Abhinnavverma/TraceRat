@@ -147,5 +147,6 @@ class PromptBuilder:
                 ),
                 "similar_pr_count": len(prediction.get("similar_prs", [])),
                 "degraded": prediction.get("degraded", False),
+                "original_prediction": prediction,
             },
         )
