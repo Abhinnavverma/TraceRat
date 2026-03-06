@@ -76,9 +76,17 @@ class Neo4jSettings(BaseSettings):
 class LLMSettings(BaseSettings):
     """LLM provider settings (pluggable)."""
 
-    provider: str = Field(default="openai", alias="LLM_PROVIDER")
+    provider: str = Field(default="gemini", alias="LLM_PROVIDER")
     api_key: str = Field(default="", alias="LLM_API_KEY")
-    model: str = Field(default="gpt-4", alias="LLM_MODEL")
+    model: str = Field(default="gemini-2.0-flash", alias="LLM_MODEL")
+    max_retries: int = Field(default=3, ge=0, alias="LLM_MAX_RETRIES")
+    retry_base_delay: float = Field(
+        default=1.0, ge=0.1, alias="LLM_RETRY_BASE_DELAY"
+    )
+    api_gateway_results_url: str = Field(
+        default="http://api-gateway:8000/results",
+        alias="API_GATEWAY_RESULTS_URL",
+    )
 
     model_config = {"env_prefix": "", "extra": "ignore"}
 
@@ -130,10 +138,6 @@ class PredictionSettings(BaseSettings):
     )
     sweep_interval_seconds: int = Field(
         default=10, ge=1, alias="PREDICTION_SWEEP_INTERVAL_SECONDS"
-    )
-    api_gateway_results_url: str = Field(
-        default="http://api-gateway:8000/results",
-        alias="API_GATEWAY_RESULTS_URL",
     )
 
     model_config = {"env_prefix": "", "extra": "ignore"}

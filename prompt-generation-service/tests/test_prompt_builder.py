@@ -149,6 +149,7 @@ class TestPromptBuilder:
         assert result.metadata["affected_component_count"] == 3
         assert result.metadata["similar_pr_count"] == 2
         assert result.metadata["degraded"] is False
+        assert result.metadata["original_prediction"] == SAMPLE_PREDICTION
 
     def test_build_minimal_prediction(self):
         result = self.builder.build(SAMPLE_MINIMAL_PREDICTION)

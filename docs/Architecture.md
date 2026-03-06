@@ -234,20 +234,43 @@ historical_failure_probability
 
 ---
 
-## 10. Prompt Generation
+## 10. Prompt Generation Service
 
-The Prompt Generation Service constructs a structured prompt containing:
+**Service:** `prompt-generation-service` (port 8005)
 
-- affected components
-- traffic impact
-- dependency propagation
-- similar historical PR incidents
+The Prompt Generation Service consumes prediction results from the `prediction-results` Kafka topic and constructs structured LLM prompts.
 
-This prompt is passed to the LLM layer.
+Responsibilities:
+
+- Filter degraded predictions (skip LLM for incomplete signals)
+- Build a system + user message pair from prediction data
+- Publish the prompt payload to the `llm-prompts` Kafka topic
+
+The system message defines the LLM's role as a blast-radius analyst and specifies the expected Markdown output format (Summary, Affected Components table, Historical Context, Recommendations).
+
+The user message contains the structured prediction data: risk score, risk level, affected components, similar PRs, traffic impact, and existing recommendations.
+
+The prompt payload includes PR routing metadata (`event_id`, `repo_full_name`, `pr_number`, `installation_id`, `head_sha`) and the full original prediction in `metadata.original_prediction` so the downstream LLM service can route its response back to the correct PR and fall back to the deterministic score on LLM failure.
+
+Kafka flow:
+
+prediction-results -> prompt-generation-service -> llm-prompts
 
 ---
 
-## 11. LLM Analysis Layer
+## 11. LLM Service
+
+**Service:** `llm-service` (port 8006)
+
+The LLM Service consumes structured prompts from the `llm-prompts` Kafka topic and calls an external LLM provider API to generate the blast-radius analysis.
+
+Responsibilities:
+
+- Consume prompt payloads from the `llm-prompts` topic
+- Call the configured LLM provider (Gemini by default — pluggable for future providers)
+- Parse the LLM response into a structured result
+- POST the enriched result to the API Gateway `POST /results` endpoint
+- On LLM failure (timeout, rate limit), fall back to posting the deterministic prediction from `metadata.original_prediction`
 
 The LLM interprets system signals and generates:
 
@@ -256,22 +279,33 @@ The LLM interprets system signals and generates:
 - impacted services summary
 - mitigation suggestions
 
-Example output:
+This service is intentionally separated from prompt generation to allow:
 
-Risk: HIGH
+- Independent scaling of LLM API calls
+- Provider-specific retry and rate-limit handling
+- Easy swap between LLM providers without touching prompt logic
+- Testing prompt quality without incurring LLM API costs
 
-Reason:
-- Change affects auth token validator
-- Module serves 80% of login requests
-- Historically similar PR caused auth outage
+Retry strategy: 3 attempts with exponential backoff (1s, 2s, 4s). On exhaustion, the deterministic prediction is posted as-is with a note that LLM analysis was unavailable.
+
+Kafka + HTTP flow:
+
+llm-prompts -> llm-service -> HTTP POST -> api-gateway /results
 
 ---
 
 ## 12. PR Comment Integration
 
-The result is returned through the API Gateway and posted directly to the Pull Request as a comment.
+The API Gateway receives prediction results via its `POST /results` endpoint and posts them directly to the Pull Request as a GitHub comment.
 
-Example:
+The **LLM Service** is the sole publisher to this endpoint. It posts either:
+
+1. An LLM-enriched result with a detailed Markdown explanation and recommendations (happy path)
+2. The deterministic prediction score as a fallback when the LLM is unavailable
+
+This single-comment design ensures each PR receives exactly one blast-radius comment.
+
+Example comment:
 
 Blast Radius Score: 0.82 (High)
 
@@ -285,6 +319,35 @@ Traffic Impact:
 
 Recommendation:
 Add additional integration tests for token validation.
+
+---
+
+# Service Summary
+
+| Service | Port | Kafka Input | Kafka Output | HTTP Output |
+|---------|------|-------------|-------------|-------------|
+| api-gateway | 8000 | — | pr-events | GitHub API |
+| diff-fetching-service | 8001 | pr-events | diff-metadata, diff-content | — |
+| dependency-graph | 8002 | diff-metadata, telemetry-events | delta-graph | — |
+| vectorization-service | 8003 | diff-content | pr-context | — |
+| prediction-service | 8004 | delta-graph, pr-context | prediction-results | — |
+| prompt-generation-service | 8005 | prediction-results | llm-prompts | — |
+| llm-service | 8006 | llm-prompts | — | api-gateway /results |
+
+Kafka Topic Flow:
+
+    pr-events
+    ├── diff-fetching-service
+    │   ├── diff-metadata ──► dependency-graph ──► delta-graph ─────────┐
+    │   └── diff-content  ──► vectorization-service ──► pr-context ─────┤
+    │                                                                    │
+    └── prediction-service ◄──── (delta-graph + pr-context) ────────────┘
+            │
+            └──► Kafka: prediction-results
+                    └──► prompt-generation-service
+                            └──► Kafka: llm-prompts
+                                    └──► llm-service
+                                            └──► HTTP: api-gateway /results
 
 ---
 
