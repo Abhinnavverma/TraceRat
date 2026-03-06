@@ -1,54 +1,104 @@
-.PHONY: build up down restart logs test lint clean
+.PHONY: build up down restart logs test lint format clean \
+       test-all seed-graph seed-prs seed-all demo-up demo-trigger
 
-# Build all services
+SERVICES = api-gateway diff-fetching-service dependency-graph \
+           vectorization-service prediction-service \
+           prompt-generation-service llm-service
+
+SEED_REPO ?= tiangolo/fastapi
+SEED_PR_COUNT ?= 30
+
+# --------------------------------------------------------
+# Docker
+# --------------------------------------------------------
+
 build:
-	docker-compose build
+	docker compose build
 
-# Start all services
 up:
-	docker-compose up -d
+	docker compose up -d
 
-# Start with build
 up-build:
-	docker-compose up -d --build
+	docker compose up -d --build
 
-# Stop all services
 down:
-	docker-compose down
+	docker compose down
 
-# Stop and remove volumes
 down-clean:
-	docker-compose down -v
+	docker compose down -v
 
-# Restart all services
 restart:
-	docker-compose restart
+	docker compose restart
 
-# View logs
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
-# View logs for a specific service
 logs-%:
-	docker-compose logs -f $*
+	docker compose logs -f $*
 
-# Run api-gateway tests
-test-api-gateway:
-	cd api-gateway && python -m pytest tests/ -v
+# --------------------------------------------------------
+# Testing
+# --------------------------------------------------------
 
-# Run all tests
-test:
-	$(MAKE) test-api-gateway
+test-%:
+	cd $* && python -m pytest tests/ -v
 
-# Lint all services
+test-all:
+	@for svc in $(SERVICES); do \
+		echo "\n========== $$svc =========="; \
+		cd $$svc && python -m pytest tests/ -v && cd ..; \
+	done
+
+test: test-all
+
+# --------------------------------------------------------
+# Linting / Formatting
+# --------------------------------------------------------
+
 lint:
-	cd api-gateway && python -m ruff check .
+	@for svc in $(SERVICES); do \
+		echo "\n========== $$svc =========="; \
+		cd $$svc && python -m ruff check . && cd ..; \
+	done
 
-# Format code
 format:
-	cd api-gateway && python -m ruff format .
+	@for svc in $(SERVICES); do \
+		cd $$svc && python -m ruff format . && cd ..; \
+	done
 
-# Clean up
+# --------------------------------------------------------
+# Seeding  (run AFTER `make up`)
+# --------------------------------------------------------
+
+seed-graph:
+	python tools/seed_repo.py --repo $(SEED_REPO)
+
+seed-prs:
+	python tools/seed_prs.py --repo $(SEED_REPO) --count $(SEED_PR_COUNT)
+
+seed-all: seed-graph seed-prs
+
+# --------------------------------------------------------
+# Demo workflow
+# --------------------------------------------------------
+
+demo-up: up
+	@echo "Waiting for infrastructure to be healthy..."
+	@sleep 20
+	$(MAKE) seed-all
+	@echo "\nInfrastructure ready.  Open:"
+	@echo "  Kafka UI   → http://localhost:8080"
+	@echo "  Neo4j      → http://localhost:7474"
+	@echo "  Grafana    → http://localhost:3000  (admin / tracerat)"
+	@echo "  Prometheus → http://localhost:9090"
+
+demo-trigger:
+	python tools/inject_event.py --repo $(SEED_REPO) --pr 1
+
+# --------------------------------------------------------
+# Cleanup
+# --------------------------------------------------------
+
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type d -name .pytest_cache -exec rm -rf {} +

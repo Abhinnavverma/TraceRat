@@ -1,0 +1,42 @@
+# Prometheus configuration for TraceRat
+# Scrapes all 7 microservices at their /metrics endpoints
+
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: "api-gateway"
+    static_configs:
+      - targets: ["tracerat-api-gateway:8000"]
+    metrics_path: /metrics
+
+  - job_name: "diff-fetching-service"
+    static_configs:
+      - targets: ["tracerat-diff-fetching-service:8001"]
+    metrics_path: /metrics
+
+  - job_name: "dependency-graph"
+    static_configs:
+      - targets: ["tracerat-dependency-graph:8002"]
+    metrics_path: /metrics
+
+  - job_name: "vectorization-service"
+    static_configs:
+      - targets: ["tracerat-vectorization-service:8003"]
+    metrics_path: /metrics
+
+  - job_name: "prediction-service"
+    static_configs:
+      - targets: ["tracerat-prediction-service:8004"]
+    metrics_path: /metrics
+
+  - job_name: "prompt-generation-service"
+    static_configs:
+      - targets: ["tracerat-prompt-generation-service:8005"]
+    metrics_path: /metrics
+
+  - job_name: "llm-service"
+    static_configs:
+      - targets: ["tracerat-llm-service:8006"]
+    metrics_path: /metrics
