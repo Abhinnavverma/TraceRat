@@ -29,6 +29,9 @@ class KafkaSettings(BaseSettings):
     prediction_results_topic: str = Field(
         default="prediction-results", alias="KAFKA_PREDICTION_RESULTS_TOPIC"
     )
+    llm_prompts_topic: str = Field(
+        default="llm-prompts", alias="KAFKA_LLM_PROMPTS_TOPIC"
+    )
     consumer_group: str = Field(default="tracerat", alias="KAFKA_CONSUMER_GROUP")
 
     model_config = {"env_prefix": "", "extra": "ignore"}

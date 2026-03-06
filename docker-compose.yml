@@ -288,6 +288,26 @@ services:
       - tracerat-net
     restart: unless-stopped
 
+  prompt-generation-service:
+    build:
+      context: .
+      dockerfile: prompt-generation-service/Dockerfile
+    container_name: tracerat-prompt-generation-service
+    ports:
+      - "8005:8005"
+    environment:
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_PREDICTION_RESULTS_TOPIC: prediction-results
+      KAFKA_LLM_PROMPTS_TOPIC: llm-prompts
+      KAFKA_CONSUMER_GROUP: prompt-generation-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - tracerat-net
+    restart: unless-stopped
+
 volumes:
   zookeeper-data:
   kafka-data:
