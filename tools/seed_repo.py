@@ -16,6 +16,7 @@ import argparse
 import ast
 import hashlib
 import math
+import os
 import sys
 from collections import defaultdict
 from pathlib import PurePosixPath
@@ -30,24 +31,37 @@ from neo4j import GraphDatabase
 GITHUB_API = "https://api.github.com"
 
 
+def _github_headers() -> dict[str, str]:
+    """Return GitHub API headers, including auth token if available."""
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
 def fetch_repo_tree(repo: str, branch: str = "main") -> list[dict]:
     """Fetch the full file tree from GitHub (recursive).
 
     Falls back to ``master`` if ``main`` is not found.
     """
+    headers = _github_headers()
     for ref in (branch, "master"):
         url = f"{GITHUB_API}/repos/{repo}/git/trees/{ref}?recursive=1"
-        resp = httpx.get(url, timeout=30)
+        resp = httpx.get(url, headers=headers, timeout=30, follow_redirects=True)
         if resp.status_code == 200:
             return resp.json().get("tree", [])
+        if resp.status_code == 403:
+            print("  GitHub API rate-limited (403). Set GITHUB_TOKEN env var for 5000 req/hr.")
     raise SystemExit(f"Could not fetch tree for {repo} (tried main, master)")
 
 
 def fetch_file_content(repo: str, path: str, ref: str = "main") -> str | None:
     """Fetch raw file content from GitHub."""
+    headers = _github_headers()
     for branch in (ref, "master"):
         url = f"https://raw.githubusercontent.com/{repo}/{branch}/{path}"
-        resp = httpx.get(url, timeout=15)
+        resp = httpx.get(url, headers=headers, timeout=15, follow_redirects=True)
         if resp.status_code == 200:
             return resp.text
     return None

@@ -141,15 +141,20 @@ class GitHubAppAuth:
         """Verify webhook signature using configured secret."""
         return verify_webhook_signature(payload, signature, self._settings.webhook_secret)
 
-    async def get_token(self, installation_id: int) -> str:
+    async def get_token(self, installation_id: int) -> str | None:
         """Get a cached or fresh installation token.
 
         Args:
             installation_id: GitHub App installation ID.
+                Use 0 for public repo access without authentication.
 
         Returns:
-            Valid installation access token.
+            Valid installation access token, or None for public API access.
         """
+        # installation_id == 0 means public API (no auth needed)
+        if installation_id == 0:
+            return None
+
         # Check cache (tokens valid for 1 hour, refresh at 50 min)
         if installation_id in self._token_cache:
             token, expiry = self._token_cache[installation_id]

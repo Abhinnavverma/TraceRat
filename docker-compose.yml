@@ -104,24 +104,25 @@ services:
       test: ["CMD-SHELL", "pg_isready -U tracerat"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 15s
 
   qdrant:
     image: qdrant/qdrant:latest
     container_name: tracerat-qdrant
     ports:
-      - "6333:6333"  # REST API
-      - "6334:6334"  # gRPC
+      - "6333:6333"
+      - "6334:6334"
     volumes:
       - qdrant-data:/qdrant/storage
-    networks:
-      - tracerat-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/6333' 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
-
+      start_period: 15s
+    networks:
+      - tracerat-net
   # ==========================
   # Application Services
   # ==========================
@@ -316,7 +317,7 @@ services:
       KAFKA_CONSUMER_GROUP: llm-service
       # LLM
       LLM_PROVIDER: gemini
-      LLM_MODEL: gemini-2.0-flash
+      LLM_MODEL: ${LLM_MODEL:-gemini-2.0-flash}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MAX_RETRIES: 3
       LLM_RETRY_BASE_DELAY: 1.0

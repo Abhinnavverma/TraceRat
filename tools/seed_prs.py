@@ -22,6 +22,7 @@ import httpx
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 from sentence_transformers import SentenceTransformer
+import os
 
 # ---------------------------------------------------------------------------
 # GitHub API
@@ -30,16 +31,27 @@ from sentence_transformers import SentenceTransformer
 GITHUB_API = "https://api.github.com"
 
 
+def _github_headers() -> dict[str, str]:
+    """Return GitHub API headers, including auth token if available."""
+    headers = {"Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
 def fetch_closed_prs(repo: str, count: int = 30) -> list[dict]:
     """Fetch the most recently closed/merged PRs."""
     prs: list[dict] = []
     page = 1
     per_page = min(count, 100)
+    headers = _github_headers()
 
     while len(prs) < count:
         url = f"{GITHUB_API}/repos/{repo}/pulls"
         resp = httpx.get(
             url,
+            headers=headers,
             params={
                 "state": "closed",
                 "sort": "updated",
@@ -48,6 +60,7 @@ def fetch_closed_prs(repo: str, count: int = 30) -> list[dict]:
                 "page": page,
             },
             timeout=30,
+            follow_redirects=True,
         )
         resp.raise_for_status()
         batch = resp.json()
@@ -62,7 +75,8 @@ def fetch_closed_prs(repo: str, count: int = 30) -> list[dict]:
 def fetch_pr_files(repo: str, pr_number: int) -> list[dict]:
     """Fetch the changed files for a PR (max 100)."""
     url = f"{GITHUB_API}/repos/{repo}/pulls/{pr_number}/files"
-    resp = httpx.get(url, params={"per_page": 100}, timeout=30)
+    headers = _github_headers()
+    resp = httpx.get(url, headers=headers, params={"per_page": 100}, timeout=30, follow_redirects=True)
     if resp.status_code != 200:
         return []
     return resp.json()

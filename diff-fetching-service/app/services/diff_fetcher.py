@@ -56,21 +56,24 @@ class DiffFetcher:
         all_files: list[ChangedFile] = []
         page = 1
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             while True:
                 url = (
                     f"{GITHUB_API_BASE}/repos/{owner}/{repo}"
                     f"/pulls/{pr_number}/files"
                 )
 
+                headers = {
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                }
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+
                 response = await client.get(
                     url,
                     params={"per_page": FILES_PER_PAGE, "page": page},
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Accept": "application/vnd.github+json",
-                        "X-GitHub-Api-Version": "2022-11-28",
-                    },
+                    headers=headers,
                 )
 
                 github_api_requests.labels(
