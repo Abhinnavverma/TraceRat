@@ -15,6 +15,9 @@ logger = get_logger("results")
 
 router = APIRouter(tags=["results"])
 
+# In-memory store for demo mode
+_results_store: list[dict] = []
+
 
 def format_pr_comment(result: PredictionResult) -> str:
     """Format a prediction result as a Markdown PR comment.
@@ -79,18 +82,56 @@ def format_pr_comment(result: PredictionResult) -> str:
     return "\n".join(lines)
 
 
+@router.get(
+    "/results",
+    summary="List all stored prediction results",
+)
+async def list_results():
+    """Return all prediction results received so far (demo mode)."""
+    return _results_store
+
+
+@router.get(
+    "/results/{event_id}",
+    summary="Get a specific prediction result by event_id",
+)
+async def get_result(event_id: str):
+    """Return a single prediction result by event_id."""
+    for r in _results_store:
+        if r.get("event_id") == event_id:
+            return r
+    raise HTTPException(status_code=404, detail=f"Result {event_id} not found")
+
+
 @router.post(
     "/results",
     status_code=status.HTTP_200_OK,
     summary="Receive prediction results and post PR comment",
 )
 async def receive_results(result: PredictionResult):
-    """Receive a prediction result and post it as a GitHub PR comment.
-
-    This endpoint is called internally by the prediction service.
-    """
+    """Receive a prediction result and post it as a GitHub PR comment."""
     settings = get_settings()
     comment_body = format_pr_comment(result)
+
+    # Always store the result locally
+    _results_store.append(result.model_dump(mode="json"))
+    logger.info(
+        "Result stored",
+        repo=result.repo_full_name,
+        pr_number=result.pr_number,
+        risk_level=result.risk_level.value,
+        risk_score=result.risk_score,
+    )
+
+    # Skip GitHub comment if no App ID is configured (demo mode)
+    if not settings.github.app_id:
+        logger.info("GitHub App not configured — skipping PR comment (demo mode)")
+        return {
+            "status": "stored",
+            "risk_level": result.risk_level.value,
+            "risk_score": result.risk_score,
+            "comment_posted": False,
+        }
 
     try:
         owner, repo = result.repo_full_name.split("/", 1)
@@ -121,6 +162,7 @@ async def receive_results(result: PredictionResult):
             "status": "posted",
             "comment_url": comment_url,
             "risk_level": result.risk_level.value,
+            "comment_posted": True,
         }
     except Exception as e:
         logger.error(
